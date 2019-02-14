@@ -100,6 +100,7 @@ export class ZabbixDatasource {
         }
       });
     }
+    var isTableMode = _.includes(_.map(options.targets,'resultFormat'), "table");
 
     // Create request for each target
     let promises = _.map(options.targets, t => {
@@ -162,8 +163,51 @@ export class ZabbixDatasource {
     return Promise.all(_.flatten(promises))
       .then(_.flatten)
       .then(data => {
-        return { data: data };
+        return this.formatData(data, isTableMode? "table":"timeseries"); 
       });
+  }
+
+
+  formatData(data, mode){
+    switch(mode){
+      case "timeseries":
+        return this.formatForTimeseries(data);
+        break;
+      case "table":
+        return this.formatForTable(data);
+        break;
+
+    }
+
+  }
+  formatForTimeseries(data){
+    return { data: data };
+  }
+  formatForTable(data){
+    var columns = _.uniq(_.map(data, "item"));
+    
+    var rows = _.uniq(_.map(data, "host"));
+    var valueSelector = ts => _.maxBy(ts, 1);
+    var resultRows = [];
+    var grouppedByHostItem = _.groupBy(data, v=>`${v.item} ${v.host}`);
+    for(var i =0;i<rows.length;i++){
+      var row = _.map(_.map(columns, c=> valueSelector(_.flatten(_.map(grouppedByHostItem[`${c} ${rows[i]}`],"datapoints")))),0)
+      row.unshift(rows[i]);
+      resultRows.unshift(row);
+    }
+    columns.unshift("host");
+    var columnMap = _.map(columns, c=>{ return { text:c };});
+    return {
+      data:[
+        {
+          type:"table",
+          columns:columnMap,
+          rows:resultRows
+        }
+      ]    
+    };
+
+
   }
 
   /**

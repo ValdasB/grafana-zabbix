@@ -35,6 +35,8 @@ function convertHistory(history, items, addHostName, convertPointCallback) {
     }
     return {
       target: alias,
+      host: _.find(item.hosts, {hostid:item.hostid}).name,
+      item: item.name,
       datapoints: _.map(hist, convertPointCallback)
     };
   });
